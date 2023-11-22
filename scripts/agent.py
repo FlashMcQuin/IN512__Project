@@ -17,7 +17,7 @@ class Agent:
     """ Class that implements the behaviour of each agent based on their perception and communication with other agents """
     def __init__(self, server_ip):
         #TODO: DEFINE YOUR ATTRIBUTES HERE
-
+        
         #DO NOT TOUCH THE FOLLOWING INSTRUCTIONS
         self.network = Network(server_ip=server_ip)
         self.agent_id = self.network.id
@@ -57,12 +57,9 @@ if __name__ == "__main__":
                 cmds["Msg type"] = int(input("1 <-> Key discovered\n2 <-> Box discovered\n3 <-> Completed\n"))
                 cmds["position"] = (agent.x, agent.y)
                 cmds["owner"] = randint(0,3) # TODO: specify the owner of the item
+                print(agent.x, agent.y)
             elif cmds["header"] == MOVE:
                 cmds["direction"] = int(input("0 <-> Stand\n1 <-> Left\n2 <-> Right\n3 <-> Up\n4 <-> Down\n5 <-> UL\n6 <-> UR\n7 <-> DL\n8 <-> DR\n"))
             agent.network.send(cmds)
     except KeyboardInterrupt:
         pass
-
-
-
-
