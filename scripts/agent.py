@@ -16,7 +16,7 @@ import numpy as np
 class Agent:
     """ Class that implements the behaviour of each agent based on their perception and communication with other agents """
     def __init__(self, server_ip):
-        #TODO: DEINE YOUR ATTRIBUTES HERE
+        #TODO: DEFINE YOUR ATTRIBUTES HERE
 
         #DO NOT TOUCH THE FOLLOWING INSTRUCTIONS
         self.network = Network(server_ip=server_ip)

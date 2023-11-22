@@ -17,7 +17,8 @@ class Game:
     def __init__(self, nb_agents, map_id):
         self.nb_agents = nb_agents
         self.nb_ready = 0
-        self.moves = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
+        #All the possible moves that can be performed by the agent :
+        self.moves = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)] 
         self.load_map(map_id)
         self.gui = GUI(self)
 
