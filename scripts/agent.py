@@ -10,7 +10,7 @@ from my_constants import *
 from threading import Thread
 import numpy as np
 #thuis is the agent 
-
+#hello I'm the queen 
 class Agent:
     """ Class that implements the behaviour of each agent based on their perception and communication with other agents """
     def __init__(self, server_ip):
