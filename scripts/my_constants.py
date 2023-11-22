@@ -5,7 +5,7 @@ __license__ = "Apache License 2.0"
 __version__ = "1.0.0"
 
 """ This file contains all the 'constants' shared by all the scripts """
-
+#This is constants from QUIN
 """ MSG HEADERS """
 BROADCAST_MSG = 0
 GET_DATA = 1    #get the current location of the agent and the dimension of the environment (width and height)
