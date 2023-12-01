@@ -17,12 +17,15 @@ class Game:
     def __init__(self, nb_agents, map_id):
         self.nb_agents = nb_agents
         self.nb_ready = 0
-        #All the possible moves that can be performed by the agent
-        self.moves = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)] 
+        self.moves = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
         self.load_map(map_id)
         self.gui = GUI(self)
 
-    
+    def initial_position(self, w, h) : 
+        x = np.random.randint(w)
+        y = np.random.randint(h)
+        return [x, y] 
+
     def load_map(self, map_id):
         """ Load a map """
         json_filename = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources", "config.json")
@@ -31,7 +34,8 @@ class Game:
         
         self.agents, self.keys, self.boxes = [], [], []
         for i in range(self.nb_agents):
-            self.agents.append(Agent(i+1, self.map_cfg[f"agent_{i+1}"]["x"], self.map_cfg[f"agent_{i+1}"]["y"], self.map_cfg[f"agent_{i+1}"]["color"]))
+
+            self.agents.append(Agent_game(i+1, self.initial_position(20, 20)[0], self.initial_position(20, 20)[1], self.map_cfg[f"agent_{i+1}"]["color"]))
             self.keys.append(Key(self.map_cfg[f"key_{i+1}"]["x"], self.map_cfg[f"key_{i+1}"]["y"]))
             self.boxes.append(Box(self.map_cfg[f"box_{i+1}"]["x"], self.map_cfg[f"box_{i+1}"]["y"]))
         
@@ -75,6 +79,7 @@ class Game:
         if msg["direction"] in range(9):
             dx, dy = self.moves[msg["direction"]]
             x, y = self.agents[agent_id].x, self.agents[agent_id].y
+            self.agents[agent_id].history.append([x,y])
             if 0 <= x + dx < self.map_w and 0 <= y + dy < self.map_h:  
                 self.agents[agent_id].x, self.agents[agent_id].y = x + dx, y + dy
         return {"sender": GAME_ID, "header": MOVE, "x": self.agents[agent_id].x, "y": self.agents[agent_id].y, "cell_val": self.map_real[self.agents[agent_id].y, self.agents[agent_id].x]}
@@ -91,10 +96,12 @@ class Game:
                 return  {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": i, "type": BOX_TYPE}
 
 
-class Agent:
+class Agent_game:
     def __init__(self, id, x, y, color):
+        self.history = []
         self.id = id
         self.x, self.y = x, y
+        self.history.append([self.x, self.y])
         self.color = color
 
     def __repr__(self):

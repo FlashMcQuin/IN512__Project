@@ -69,6 +69,9 @@ class GUI:
         except Exception:
             pass
     
+    def color_cell(self, col, row) : 
+        pygame.draw.rect(self.screen, PINK, (col * self.cell_size, row * self.cell_size, self.cell_size, self.cell_size))
+        pygame.draw.rect(self.screen, BLACK, (col * self.cell_size, row * self.cell_size, self.cell_size, self.cell_size), 1)
 
     def draw(self):
         self.screen.fill(BG_COLOR)
@@ -79,7 +82,9 @@ class GUI:
         for j in range(1, self.w):
             pygame.draw.line(self.screen, BLACK, (j*self.cell_size, 0), (j*self.cell_size, self.h*self.cell_size))
 
-        for i in range(self.game.nb_agents):            
+        for i in range(self.game.nb_agents):   
+            for c in range (len(self.game.agents[i].history)):
+                self.color_cell(self.game.agents[i].history[c][0], self.game.agents[i].history[c][1])         
             #keys
             pygame.draw.rect(self.screen, self.game.agents[i].color, (self.game.keys[i].x*self.cell_size, self.game.keys[i].y*self.cell_size, self.cell_size, self.cell_size), width=3)
             self.screen.blit(self.keys[i], self.keys[i].get_rect(topleft=(self.game.keys[i].x*self.cell_size, self.game.keys[i].y*self.cell_size)))
@@ -91,5 +96,6 @@ class GUI:
             #agents
             self.screen.blit(self.agents[i], self.agents[i].get_rect(center=(self.game.agents[i].x*self.cell_size + self.cell_size//2, self.game.agents[i].y*self.cell_size + self.cell_size//2)))
             self.screen.blit(self.text_agents[i], self.text_agents[i].get_rect(center=(self.game.agents[i].x*self.cell_size + self.cell_size-self.text_agents[i].get_width()//2, self.game.agents[i].y*self.cell_size + self.cell_size-self.text_agents[i].get_height()//2)))
-        
+            #print(self.game.agents[i].history)
+
         pygame.display.update()

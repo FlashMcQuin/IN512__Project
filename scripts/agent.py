@@ -9,26 +9,26 @@ from my_constants import *
 
 from threading import Thread
 import numpy as np
-#thuis is the agent 
-#hello I'm the queen
-#hello I'm Simon
-#Test2 pour simon
+
 class Agent:
     """ Class that implements the behaviour of each agent based on their perception and communication with other agents """
     def __init__(self, server_ip):
-        #TODO: DEFINE YOUR ATTRIBUTES HERE
-        
+        #TODO: DEINE YOUR ATTRIBUTES HERE
+        #self.history = []
         #DO NOT TOUCH THE FOLLOWING INSTRUCTIONS
+        self.move = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
         self.network = Network(server_ip=server_ip)
         self.agent_id = self.network.id
         self.running = True
         self.network.send({"header": GET_DATA})
         env_conf = self.network.receive()
         self.x, self.y = env_conf["x"], env_conf["y"]   #initial agent position
+        #self.history.append([self.x, self.y])
         self.w, self.h = env_conf["w"], env_conf["h"]   #environment dimensions
         cell_val = env_conf["cell_val"] #value of the cell the agent is located in
         Thread(target=self.msg_cb, daemon=True).start()
-        
+
+
 
     def msg_cb(self): 
         """ Method used to handle incoming messages """
@@ -37,9 +37,14 @@ class Agent:
             print(msg)
             
             
-            
+    
     #TODO: CREATE YOUR METHODS HERE...
-
+    def update_position(self, int_move) : 
+        self.x += self.move[int_move][0]
+        self.y += self.move[int_move][1]
+    
+    def get_position(self):
+        return [self.x, self.y]
 
 
 if __name__ == "__main__":
@@ -57,9 +62,14 @@ if __name__ == "__main__":
                 cmds["Msg type"] = int(input("1 <-> Key discovered\n2 <-> Box discovered\n3 <-> Completed\n"))
                 cmds["position"] = (agent.x, agent.y)
                 cmds["owner"] = randint(0,3) # TODO: specify the owner of the item
-                print(agent.x, agent.y)
             elif cmds["header"] == MOVE:
                 cmds["direction"] = int(input("0 <-> Stand\n1 <-> Left\n2 <-> Right\n3 <-> Up\n4 <-> Down\n5 <-> UL\n6 <-> UR\n7 <-> DL\n8 <-> DR\n"))
+                agent.update_position(cmds["direction"])
+                #agent.history.append(agent.get_position())
             agent.network.send(cmds)
     except KeyboardInterrupt:
         pass
+
+
+
+
