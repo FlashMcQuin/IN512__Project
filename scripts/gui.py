@@ -64,6 +64,7 @@ class GUI:
                 for event in pygame.event.get():
                     self.on_event(event)    
                 self.draw()
+                self.split_map()
                 self.clock.tick(self.fps)
             self.on_cleanup()
         except Exception:
@@ -91,5 +92,18 @@ class GUI:
             #agents
             self.screen.blit(self.agents[i], self.agents[i].get_rect(center=(self.game.agents[i].x*self.cell_size + self.cell_size//2, self.game.agents[i].y*self.cell_size + self.cell_size//2)))
             self.screen.blit(self.text_agents[i], self.text_agents[i].get_rect(center=(self.game.agents[i].x*self.cell_size + self.cell_size-self.text_agents[i].get_width()//2, self.game.agents[i].y*self.cell_size + self.cell_size-self.text_agents[i].get_height()//2)))
-        
+
         pygame.display.update()
+
+    def split_map(self):
+        """split map by the number of agents on the server, in this way, they work together to scan the area.
+
+        should memorize which div is made for which agent.
+        """
+        nb_agents = self.game.nb_agents
+        map_h = self.h/nb_agents
+        map_w = self.w
+        for i in range(nb_agents+1):
+            pygame.draw.line(self.screen, RED, (0, i*map_h*self.cell_size), (map_w*self.cell_size, i*map_h*self.cell_size))
+        pygame.display.update()
+        
