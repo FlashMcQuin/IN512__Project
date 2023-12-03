@@ -18,7 +18,13 @@ class GUI:
         self.clock = pygame.time.Clock()
         self.cell_size = cell_size
         self.screen_res = (self.w*cell_size, self.h*cell_size)      
-
+        nb_agents = self.game.nb_agents
+        map_h = self.h/nb_agents
+        self.map_attribution = {}
+        for i in range(nb_agents):
+            h_limit1 = i*map_h
+            h_limit2 = (i+1)*map_h
+            self.map_attribution[i] = (h_limit1, h_limit2) #defines the bounds in which the robot needs to scan
 
     def on_init(self):
         pygame.init()
@@ -103,14 +109,13 @@ class GUI:
         nb_agents = self.game.nb_agents
         map_h = self.h/nb_agents
         map_w = self.w
-        map_attribution = {}
+        
         for i in range(nb_agents+1):
             h_limit1 = i*map_h*self.cell_size
             pygame.draw.line(self.screen, RED, (0, h_limit1 ), (map_w*self.cell_size, h_limit1))
             if i< nb_agents :
-                agent=f"agent{i+1}"
+                agent=f"agent{i}"
                 h_limit2 = (i+1)*map_h*self.cell_size
-                map_attribution[agent] = (h_limit1, h_limit2) #defines the bounds in which the robot needs to scan
-        print(map_attribution)
+                self.map_attribution[agent] = (h_limit1, h_limit2) #defines the bounds in which the robot needs to scan
 
         

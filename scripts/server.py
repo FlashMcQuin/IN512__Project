@@ -48,25 +48,30 @@ class Server:
             Thread(target=self.client_cb, daemon=True, args=(conn, addr, self.id_count)).start()
             self.id_count += 1
             sleep(0.1)
+        print("map are attributed : ",self.game.gui.map_attribution)
         self.game.gui.render()
+        
     
 
     def client_cb(self, conn, addr, client_id):
         """ Handle the interactions with a client """
         print(f"Connected to {addr[0]} on port {addr[1]}")
         self.game.nb_ready += 1
-
         conn.send(pickle.dumps((client_id)))
-
+        print("your client id is : ", client_id, " and you are restricted to the zone : ", self.game.gui.map_attribution[client_id])
+        #conn.send((pickle.dumps(self.game.gui.map_attribution[client_id])))
+        print("sending : ",pickle.dumps((client_id)))
         try:
             while True:
                 msg = pickle.loads(conn.recv(1024))
+                print("received  : ", msg)
                 if msg["header"] == BROADCAST_MSG:
                     msg["sender"] = client_id
                     self.send_to_all(conn, msg)
                 else:
                     reply = self.game.process(msg, client_id)
                     conn.send(pickle.dumps(reply))
+                    print("replied : ", reply)
         except Exception as e:
             pass
         finally:

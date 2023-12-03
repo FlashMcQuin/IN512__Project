@@ -43,6 +43,4 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 
-""" Simon """
-SIMON = 12345
-
+ATTRIBUTION = 99

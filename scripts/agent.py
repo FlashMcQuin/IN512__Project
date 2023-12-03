@@ -9,10 +9,7 @@ from my_constants import *
 
 from threading import Thread
 import numpy as np
-#thuis is the agent 
-#hello I'm the queen
-#hello I'm Simon
-#Test2 pour simon
+
 class Agent:
     """ Class that implements the behaviour of each agent based on their perception and communication with other agents """
     def __init__(self, server_ip):
@@ -28,7 +25,6 @@ class Agent:
         self.w, self.h = env_conf["w"], env_conf["h"]   #environment dimensions
         cell_val = env_conf["cell_val"] #value of the cell the agent is located in
         Thread(target=self.msg_cb, daemon=True).start()
-        
 
     def msg_cb(self): 
         """ Method used to handle incoming messages """
@@ -39,18 +35,34 @@ class Agent:
             
             
     #TODO: CREATE YOUR METHODS HERE...
+    def ask_map(self):
+        """ask which bounds the agent has been assigned to
+        """
+        cmd = {"header" : ATTRIBUTION}
+        agent.network.send(cmd)
 
+    def get_assigned_map(self):
+        """get the map bounds of which the agent was assigned to
+        """
+        
+    def move_random(self):
+        """move randomly in map
+        """
+        move = np.random.randint(1,9)
+        cmd = {"header" : MOVE, "direction": move}
+        agent.network.send(cmd)
 
 
 if __name__ == "__main__":
     from random import randint
+    import time
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--server_ip", help="Ip address of the server", type=str, default="localhost")
     args = parser.parse_args()
 
     agent = Agent(args.server_ip)
-    try:    #Manual control test
+    """try:    #Manual control test
         while True:
             cmds = {"header": int(input("0 <-> Broadcast msg\n1 <-> Get data\n2 <-> Move\n3 <-> Get nb connected agents\n4 <-> Get nb agents\n5 <-> Get item owner\n"))}
             if cmds["header"] == BROADCAST_MSG:
@@ -60,6 +72,17 @@ if __name__ == "__main__":
                 print(agent.x, agent.y)
             elif cmds["header"] == MOVE:
                 cmds["direction"] = int(input("0 <-> Stand\n1 <-> Left\n2 <-> Right\n3 <-> Up\n4 <-> Down\n5 <-> UL\n6 <-> UR\n7 <-> DL\n8 <-> DR\n"))
-            agent.network.send(cmds)
+            agent.network.send(cmds)"""
+    try:    #Automatic control
+        print("Hi, i'm an agent : ", agent.agent_id)
+        agent.ask_map()
+        while True:
+            
+            
+            agent.move_random()
+            
+            time.sleep(2)
+            
+
     except KeyboardInterrupt:
         pass
