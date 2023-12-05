@@ -122,5 +122,3 @@ class GUI:
                 agent=f"agent{i}"
                 h_limit2 = (i+1)*map_h*self.cell_size
                 self.map_attribution[agent] = (h_limit1, h_limit2) #defines the bounds in which the robot needs to scan
-
-        
