@@ -18,7 +18,13 @@ class GUI:
         self.clock = pygame.time.Clock()
         self.cell_size = cell_size
         self.screen_res = (self.w*cell_size, self.h*cell_size)      
-
+        nb_agents = self.game.nb_agents
+        map_h = self.h/nb_agents
+        self.map_attribution = {}
+        for i in range(nb_agents):
+            h_limit1 = i*map_h
+            h_limit2 = (i+1)*map_h
+            self.map_attribution[i] = (int(h_limit1), int(h_limit2)) #defines the bounds in which the robot needs to scan
 
     def on_init(self):
         pygame.init()
@@ -70,7 +76,7 @@ class GUI:
             pass
     
     def color_cell(self, col, row) : 
-        pygame.draw.rect(self.screen, PINK, (col * self.cell_size, row * self.cell_size, self.cell_size, self.cell_size))
+        pygame.draw.rect(self.screen, RED, (col * self.cell_size, row * self.cell_size, self.cell_size, self.cell_size))
         pygame.draw.rect(self.screen, BLACK, (col * self.cell_size, row * self.cell_size, self.cell_size, self.cell_size), 1)
 
     def draw(self):
@@ -96,6 +102,25 @@ class GUI:
             #agents
             self.screen.blit(self.agents[i], self.agents[i].get_rect(center=(self.game.agents[i].x*self.cell_size + self.cell_size//2, self.game.agents[i].y*self.cell_size + self.cell_size//2)))
             self.screen.blit(self.text_agents[i], self.text_agents[i].get_rect(center=(self.game.agents[i].x*self.cell_size + self.cell_size-self.text_agents[i].get_width()//2, self.game.agents[i].y*self.cell_size + self.cell_size-self.text_agents[i].get_height()//2)))
-            #print(self.game.agents[i].history)
 
+            self.split_map()
         pygame.display.update()
+
+    def split_map(self):
+        """split map by the number of agents on the server, in this way, they work together to scan the area.
+
+        TODO : should memorize which div is made for which agent.
+        """
+        nb_agents = self.game.nb_agents
+        map_h = self.h/nb_agents
+        map_w = self.w
+        
+        for i in range(nb_agents+1):
+            h_limit1 = i*map_h*self.cell_size
+            pygame.draw.line(self.screen, RED, (0, h_limit1 ), (map_w*self.cell_size, h_limit1))
+            if i< nb_agents :
+                agent=f"agent{i}"
+                h_limit2 = (i+1)*map_h*self.cell_size
+                self.map_attribution[agent] = (h_limit1, h_limit2) #defines the bounds in which the robot needs to scan
+
+        
