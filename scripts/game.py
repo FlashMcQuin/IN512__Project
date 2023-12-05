@@ -69,7 +69,7 @@ class Game:
         elif msg["header"] == GET_ITEM_OWNER:
             return self.handle_item_owner_request(agent_id)
         elif msg["header"] == ATTRIBUTION :
-            return {"attibution" : self.gui.map_attribution[agent_id]}
+            return {"sender": GAME_ID, "header": ATTRIBUTION, "attribution" : self.gui.map_attribution[agent_id]}
         
 
     def handle_move(self, msg, agent_id):

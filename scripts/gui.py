@@ -24,7 +24,7 @@ class GUI:
         for i in range(nb_agents):
             h_limit1 = i*map_h
             h_limit2 = (i+1)*map_h
-            self.map_attribution[i] = (h_limit1, h_limit2) #defines the bounds in which the robot needs to scan
+            self.map_attribution[i] = (int(h_limit1), int(h_limit2)) #defines the bounds in which the robot needs to scan
 
     def on_init(self):
         pygame.init()
