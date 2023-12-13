@@ -6,22 +6,22 @@ __version__ = "1.0.0"
 
 from network import Network
 from my_constants import *
-
+import time
 from threading import Thread
 import numpy as np
 
 class Agent:
     """ Class that implements the behaviour of each agent based on their perception and communication with other agents """
     def __init__(self, server_ip):
-        #TODO: DEINE YOUR ATTRIBUTES HERE
-        #self.history = []
-        #DO NOT TOUCH THE FOLLOWING INSTRUCTIONS
-        self.move = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
+
+        #TODO: DEFINE YOUR ATTRIBUTES HERE
+        self.value_log=[0]
         self.key_position = False
-        self.box_position = False 
-        self.key_discovered = False 
-        self.box_discovered = False 
+        self.box_position = False
+        self.key_discovered = False
+        self.box_discovered = False
         self.completed = False
+        #DO NOT TOUCH THE FOLLOWING INSTRUCTIONS
         self.network = Network(server_ip=server_ip)
         self.agent_id = self.network.id
         self.running = True
@@ -40,6 +40,12 @@ class Agent:
         while self.running:
             msg = self.network.receive()
             print("Message from : ", msg["sender"], " : ", msg)
+            if msg["header"]==MOVE:
+                self.x=msg["x"]
+                self.y=msg["y"] 
+                self.cell_val=msg["cell_val"]
+            if msg["header"] == GET_DATA:
+                self.cell_val = msg["cell_val"]
             if msg["header"] == 0 : 
                 if msg["Msg type"] == 1 and msg["owner"] == self.agent_id:
                     self.key_position = msg["position"]
@@ -66,7 +72,92 @@ class Agent:
     def get_position(self):
         return [self.x, self.y]
     
-    
+    def move_random(self):
+        """move randomly in map
+        """
+        move = np.random.randint(1,9)
+        cmd = {"header" : MOVE, "direction": move}
+        self.network.send(cmd)
+
+    def move_to_bounds_old(self):
+        """agent moves to the place it has been attributed.
+        """
+        print("Actual Y used ---> ", self.y)
+        if self.y <= self.ymin : 
+            print("going up, ymin = ", self.ymin)
+            cmd = {"header" : MOVE, "direction": DOWN}
+            
+        elif self.y >= self.ymax : 
+            print("going down, ymax = ", self.ymax)
+            cmd = {"header" : MOVE, "direction": UP}
+        else : 
+            options = [8,7,3]
+            random_index = np.random.randint(0,3)
+            cmd = {"header" : MOVE, "direction": RIGHT}
+            print("i'm in place, moving forward :", options[random_index])
+        self.network.send(cmd)
+
+    def move_to_bounds_center(self):
+        ymoy = int((self.ymin+self.ymax)/2)
+        self.move_to(1, ymoy-1)
+        print("I'm in place")
+
+    def move_to(self, x, y):
+        while (self.x != x) or (self.y != y):
+            self.scan_cell()
+            dx = self.x - x
+            dy = self.y - y
+            if dy < 0: dir = DOWN
+            elif dy > 0: dir = UP
+            if dx < 0: dir = RIGHT
+            elif dx > 0: dir = LEFT
+            if dy < 0 and dx < 0: dir = DOWN_RIGHT
+            if dy > 0 and dx > 0: dir = UP_LEFT
+            if dy > 0 and dx < 0: dir = UP_RIGHT
+            if dy < 0 and dx > 0: dir = DOWN_LEFT
+            cmds = {"header": 2,
+                    "direction": dir}
+            self.network.send(cmds)
+            time.sleep(1)
+
+    def zigzag(self):
+        self.move_to(self.x+2, self.y+2)
+        time.sleep(1)
+        self.move_to(self.x+2, self.y-2)
+
+    def scan_cell(self):
+        print(f"scanning cell : ({self.x},{self.y}) -> value : {self.cell_val}")
+        if self.cell_val>0:
+            match self.cell_val : 
+                case 0.25 : 
+                    print("close to a key")
+                case 0.3 : 
+                    print("close to a box")
+                case 0.5:
+                    print("I am verty close to a key")
+                    self.value_log.append(self.cell_val) #keep this last value in memory
+                case 0.6:
+                    print("I close to a box")
+                    self.value_log.append(self.cell_val)
+            #By remembering if the value was à.6 or 0.5, we know wether we are on a key or a box.
+            if self.cell_val == 1.0 and self.value_log[-1] == 0.6:
+                print("I'm on a Box !!")
+                self.network.send({"header": BROADCAST_MSG, 
+                                   "msg type": BOX_DISCOVERED, 
+                                   "position":(self.x, self.y),
+                                   "owner":None})
+
+            elif self.cell_val == 1.0 and self.value_log[-1] == 0.5:
+                print("I'm on a Key !!")
+                self.network.send({"header": BROADCAST_MSG,
+                                    "msg type": KEY_DISCOVERED,
+                                    "position":(self.x, self.y),
+                                    "owner":None})
+        else : 
+            print("nothing to declare")
+            print(self.cell_val)
+
+        return self.cell_val
 
 if __name__ == "__main__":
     from random import randint
