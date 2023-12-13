@@ -28,15 +28,12 @@ class Agent:
         self.network.send({"header": GET_DATA})
         env_conf = self.network.receive()
         self.x, self.y = env_conf["x"], env_conf["y"]   #initial agent position
-        #self.history.append([self.x, self.y])
         self.w, self.h = env_conf["w"], env_conf["h"]   #environment dimensions
         self.cell_val = env_conf["cell_val"] #value of the cell the agent is located in
         self.network.send({"header" : ATTRIBUTION})
         env_conf = self.network.receive()
         self.ymin, self.ymax = env_conf["attribution"]
         Thread(target=self.msg_cb, daemon=True).start()
-
-
 
     def msg_cb(self): 
         """ Method used to handle incoming messages """
@@ -45,36 +42,45 @@ class Agent:
             print("Message from : ", msg["sender"], " : ", msg)
             if msg["header"]==MOVE:
                 self.x=msg["x"]
-                self.y=msg["y"] 
+                self.y=msg["y"]
                 self.cell_val=msg["cell_val"]
             if msg["header"] == GET_DATA:
                 self.cell_val = msg["cell_val"]
-            if msg["header"] == 0 : 
-                if msg["Msg type"] == 1 and msg["owner"] == self.agent_id:
+            
+            if msg["header"] == BROADCAST_MSG : 
+                if msg["msg type"] == KEY_DISCOVERED and msg["owner"] == self.agent_id:
                     self.key_position = msg["position"]
                     print("La position de ma clé est : ", msg["position"])
-                elif msg["Msg type"] == 2 and msg["owner"] == self.agent_id : 
+                elif msg["msg type"] == BOX_DISCOVERED and msg["owner"] == self.agent_id : 
                     self.box_position = msg["position"]
                     print("La position de ma box est : ", msg["position"])
-            if msg["header"] == 5 and msg["owner"] == self.agent_id:
-                if msg["type"] == 0 : 
-                    self.key_position = self.get_position()
+
+            if msg["header"] == GET_ITEM_OWNER and msg["owner"] == self.agent_id:
+                if msg["type"] == KEY_TYPE :
+                    self.key_position = (self.x, self.y)
                     self.key_discovered = True
                     print("J'ai récupéré ma clé")
-                if msg["type"] == 1 : 
-                    self.box_position = self.get_position()
+                elif msg["type"] == BOX_TYPE : 
+                    self.box_position = (self.x, self.y)
                     self.box_discovered = True
                     print("J'ai récupéré ma box")
+            elif msg["header"] == GET_ITEM_OWNER and msg["owner"] != self.agent_id:
+                if msg["owner"] is None : 
+                    print("You fool")
+                else :
+                    if msg["type"] == KEY_TYPE :
+                        discovered = KEY_DISCOVERED
+                    elif msg["type"] == BOX_TYPE :
+                        discovered = BOX_DISCOVERED
+                    self.network.send({"header": BROADCAST_MSG, 
+                                        "msg type": discovered, 
+                                        "position":(self.x, self.y),
+                                        "owner": msg["owner"]})
+            # TODO : On peut créer une action qui ajoute quel objet de quel agent a été trouvé à un dictionnaire
+            # -> permet monitorer où chacun en est, quand tout le monde connait la position de ses objets, 
+            #       on arrête de chercher 
     
-
     #TODO: CREATE YOUR METHODS HERE...
-    def update_position(self, int_move) : 
-        self.x += self.move[int_move][0]
-        self.y += self.move[int_move][1]
-    
-    def get_position(self):
-        return [self.x, self.y]
-    
     def move_random(self):
         """move randomly in map
         """
@@ -124,7 +130,8 @@ class Agent:
             time.sleep(1)
 
     def zigzag(self):
-        self.move_to(self.x+2, self.y+2)
+        if self.y<self.ymax :
+            self.move_to(self.x+2, self.y+2)
         time.sleep(1)
         self.move_to(self.x+2, self.y-2)
 
@@ -142,58 +149,53 @@ class Agent:
                 case 0.6:
                     print("I close to a box")
                     self.value_log.append(self.cell_val)
-            #By remembering if the value was à.6 or 0.5, we know wether we are on a key or a box.
-            if self.cell_val == 1.0 and self.value_log[-1] == 0.6:
-                print("I'm on a Box !!")
-                self.network.send({"header": BROADCAST_MSG, 
-                                   "msg type": BOX_DISCOVERED, 
-                                   "position":(self.x, self.y),
-                                   "owner":None})
+                case 1.0 :
+                    self.network.send({"header" : GET_ITEM_OWNER})
 
-            elif self.cell_val == 1.0 and self.value_log[-1] == 0.5:
-                print("I'm on a Key !!")
-                self.network.send({"header": BROADCAST_MSG,
-                                    "msg type": KEY_DISCOVERED,
-                                    "position":(self.x, self.y),
-                                    "owner":None})
         else : 
-            print("nothing to declare")
-            print(self.cell_val)
+            print(".")
 
         return self.cell_val
-
+    def game_state(self):
+        print(f"Position clé : {self.key_position}, position box : {self.box_position} \n clé decouverte :{self.key_discovered}, box décoverte : {self.box_discovered}, complété : {self.completed}")
+    
+    def check_walls(self, up_direction, down_direction):
+        """checks for walls, if there is, changes the direction of the zigzags
+        """
+        if self.x == self.w-1: 
+            print("wall !")
+            return UP_LEFT, DOWN_LEFT
+        elif self.x == 0 : 
+            print("wall !")
+            return UP_RIGHT, DOWN_RIGHT
+        else :
+            return up_direction, down_direction
 if __name__ == "__main__":
-    from random import randint
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--server_ip", help="Ip address of the server", type=str, default="localhost")
     args = parser.parse_args()
-
     agent = Agent(args.server_ip)
-    """
-    try:    #Manual control test
-        while True:
-            cmds = {"header": int(input("0 <-> Broadcast msg\n1 <-> Get data\n2 <-> Move\n3 <-> Get nb connected agents\n4 <-> Get nb agents\n5 <-> Get item owner\n"))}
-            if cmds["header"] == BROADCAST_MSG:
-                cmds["Msg type"] = int(input("1 <-> Key discovered\n2 <-> Box discovered\n3 <-> Completed\n"))
-                cmds["position"] = (agent.x, agent.y)
-                cmds["owner"] = randint(0,3) # TODO: specify the owner of the item
-            elif cmds["header"] == MOVE:
-                cmds["direction"] = int(input("0 <-> Stand\n1 <-> Left\n2 <-> Right\n3 <-> Up\n4 <-> Down\n5 <-> UL\n6 <-> UR\n7 <-> DL\n8 <-> DR\n"))
-                agent.update_position(cmds["direction"])
-                #agent.history.append(agent.get_position())
-            agent.network.send(cmds)
-    except KeyboardInterrupt:
-        pass
-    """
     try:    #Automatic control
         print("Hi, i'm an agent : ", agent.agent_id)
         agent.move_to_bounds_center()
+        UP_LR, DOWN_LR = UP_RIGHT, DOWN_RIGHT #start by going right
         while True:
-            agent.zigzag()
-            time.sleep(1)
-            
+            while agent.y < agent.ymax-1 : 
+                UP_LR, DOWN_LR = agent.check_walls(UP_LR, DOWN_LR)
+                cmds = {"header": MOVE,"direction": DOWN_LR}
+                agent.network.send(cmds)
+                agent.scan_cell()
+                time.sleep(1)
+            while agent.y >= agent.ymin+1 :
+                UP_LR, DOWN_LR = agent.check_walls(UP_LR, DOWN_LR)
+                cmds = {"header": MOVE,"direction": UP_LR}
+                agent.network.send(cmds)
+                agent.scan_cell()
+                time.sleep(1)
 
+            time.sleep(1)
+            agent.game_state()
     except KeyboardInterrupt:
         pass
 
@@ -216,6 +218,8 @@ DIRECTIONS :
 6 <-> UR
 7 <-> DL
 8 <-> DR
+
+
 """
 
 
