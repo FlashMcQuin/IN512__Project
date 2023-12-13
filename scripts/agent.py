@@ -16,6 +16,11 @@ class Agent:
 
         #TODO: DEFINE YOUR ATTRIBUTES HERE
         self.value_log=[0]
+        self.key_position = False
+        self.box_position = False
+        self.key_discovered = False
+        self.box_discovered = False
+        self.completed = False
         #DO NOT TOUCH THE FOLLOWING INSTRUCTIONS
         self.network = Network(server_ip=server_ip)
         self.agent_id = self.network.id
@@ -40,9 +45,27 @@ class Agent:
                 self.x=msg["x"]
                 self.y=msg["y"] 
                 self.cell_val=msg["cell_val"]
+
             if msg["header"] == GET_DATA:
                 self.cell_val = msg["cell_val"]
-                
+            if msg["header"] == 0 : 
+                if msg["Msg type"] == 1 and msg["owner"] == self.agent_id:
+                    self.key_position = msg["position"]
+                    print("La position de ma clé est : ", msg["position"])
+                elif msg["Msg type"] == 2 and msg["owner"] == self.agent_id : 
+                    self.box_position = msg["position"]
+                    print("La position de ma box est : ", msg["position"])
+            if msg["header"] == 5 and msg["owner"] == self.agent_id:
+                if msg["type"] == 0 : 
+                    self.key_position = self.get_position()
+                    self.key_discovered = True
+                    print("J'ai récupéré ma clé")
+                if msg["type"] == 1 : 
+                    self.box_position = self.get_position()
+                    self.box_discovered = True
+                    print("J'ai récupéré ma box")
+    
+
     #TODO: CREATE YOUR METHODS HERE...
         
     def move_random(self):
