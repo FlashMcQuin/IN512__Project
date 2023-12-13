@@ -30,7 +30,10 @@ class Agent:
         self.x, self.y = env_conf["x"], env_conf["y"]   #initial agent position
         #self.history.append([self.x, self.y])
         self.w, self.h = env_conf["w"], env_conf["h"]   #environment dimensions
-        cell_val = env_conf["cell_val"] #value of the cell the agent is located in
+        self.cell_val = env_conf["cell_val"] #value of the cell the agent is located in
+        self.network.send({"header" : ATTRIBUTION})
+        env_conf = self.network.receive()
+        self.ymin, self.ymax = env_conf["attribution"]
         Thread(target=self.msg_cb, daemon=True).start()
 
 
@@ -167,6 +170,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     agent = Agent(args.server_ip)
+    """
     try:    #Manual control test
         while True:
             cmds = {"header": int(input("0 <-> Broadcast msg\n1 <-> Get data\n2 <-> Move\n3 <-> Get nb connected agents\n4 <-> Get nb agents\n5 <-> Get item owner\n"))}
@@ -181,7 +185,38 @@ if __name__ == "__main__":
             agent.network.send(cmds)
     except KeyboardInterrupt:
         pass
+    """
+    try:    #Automatic control
+        print("Hi, i'm an agent : ", agent.agent_id)
+        agent.move_to_bounds_center()
+        while True:
+            agent.zigzag()
+            time.sleep(1)
+            
 
+    except KeyboardInterrupt:
+        pass
+
+"""
+COMMANDS on AGENT
+0 <-> Broadcast msg
+1 <-> Get data
+2 <-> Move
+3 <-> Get nb connected agents
+4 <-> Get nb agents
+5 <-> Get item owner
+
+DIRECTIONS : 
+0 <-> Stand
+1 <-> Left
+2 <-> Right
+3 <-> Up
+4 <-> Down
+5 <-> UL
+6 <-> UR
+7 <-> DL
+8 <-> DR
+"""
 
 
 
