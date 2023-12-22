@@ -62,14 +62,12 @@ class Server:
         try:
             while True:
                 msg = pickle.loads(conn.recv(1024))
-                print("received  : ", msg)
                 if msg["header"] == BROADCAST_MSG:
                     msg["sender"] = client_id
                     self.send_to_all(conn, msg)
                 else:
                     reply = self.game.process(msg, client_id)
                     conn.send(pickle.dumps(reply))
-                    print("replied : ", reply)
         except Exception as e:
             pass
         finally:

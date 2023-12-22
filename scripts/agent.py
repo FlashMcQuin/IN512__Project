@@ -15,21 +15,24 @@ class Agent:
     def __init__(self, server_ip):
 
         #TODO: DEFINE YOUR ATTRIBUTES HERE
-        self.value_log=[0]
-        self.key_position = False
-        self.box_position = False
+        self.nb_agents = 99
+        self.key_position = None
+        self.box_position = None
         self.key_discovered = False
         self.box_discovered = False
         self.completed = False
+        self.found_items = []
         #DO NOT TOUCH THE FOLLOWING INSTRUCTIONS
         self.network = Network(server_ip=server_ip)
         self.agent_id = self.network.id
         self.running = True
+
         self.network.send({"header": GET_DATA})
         env_conf = self.network.receive()
         self.x, self.y = env_conf["x"], env_conf["y"]   #initial agent position
         self.w, self.h = env_conf["w"], env_conf["h"]   #environment dimensions
         self.cell_val = env_conf["cell_val"] #value of the cell the agent is located in
+
         self.network.send({"header" : ATTRIBUTION})
         env_conf = self.network.receive()
         self.ymin, self.ymax = env_conf["attribution"]
@@ -54,6 +57,10 @@ class Agent:
                 elif msg["msg type"] == BOX_DISCOVERED and msg["owner"] == self.agent_id : 
                     self.box_position = msg["position"]
                     print("La position de ma box est : ", msg["position"])
+                else :
+                    #C'est pas ma box mais je l'enregistre quand même
+                    self.found_items.append(msg["position"])
+
             # If the broadcast message says it found the item of the concerned agent
             if msg["header"] == GET_ITEM_OWNER and msg["owner"] == self.agent_id:
                 if msg["type"] == KEY_TYPE :
@@ -79,6 +86,18 @@ class Agent:
             # TODO : On peut créer une action qui ajoute quel objet de quel agent a été trouvé à un dictionnaire
             # -> permet monitorer où chacun en est, quand tout le monde connait la position de ses objets, 
             #       on arrête de chercher 
+            if len(self.found_items) >= self.nb_agents*2 :
+                print("------------------we all know where our stuff is---------------------")
+                if not self.key_discovered :
+                    x, y = self.key_position
+                    self.move_to(x, y)
+                if not self.box_discovered : 
+                    x, y = self.box_position
+                    self.move_to(x, y)
+            if msg["header"] == GET_NB_CONNECTED_AGENTS  :
+                self.nb_agents = msg["nb_connected_agents"]
+                print("nb agents : ", self.nb_agents)
+
     
     #TODO: CREATE YOUR METHODS HERE...
     def search_closely(self, x_prec, y_prec, pre_cell_val, previous_direction):
@@ -96,7 +115,7 @@ class Agent:
         if previous_direction == UP_RIGHT :
             directions = [UP_LEFT, UP, UP_RIGHT, RIGHT, DOWN_RIGHT,DOWN ]
         elif previous_direction == DOWN_RIGHT : 
-            directions = [RIGHT, UP, DOWN, UP_RIGHT, DOWN_RIGHT, DOWN_LEFT]
+            directions = [UP,UP_RIGHT,RIGHT, DOWN_RIGHT,DOWN, DOWN_LEFT]
             print("starting to scan on the right")
         elif previous_direction == UP_LEFT : 
             directions = [UP_RIGHT, UP, UP_LEFT,LEFT, DOWN_LEFT,DOWN]
@@ -126,17 +145,17 @@ class Agent:
                         break
                     else : #go back to previous cell
                         self.move_to(x, y) 
+                if found : 
+                    break
             else : # wrong way, start again (with a different direction)
                 self.move_to(x_prec, y_prec)
                 time.sleep(1)
 
-            if found :
-                print("found, going out")
-                cmds = {"header": MOVE,"direction": previous_direction}
-                self.network.send(cmds)
-                self.network.send(cmds)
-                self.network.send(cmds)
-
+        if found :
+            self.network.send({"header" : GET_ITEM_OWNER})
+            self.found_items.append((self.x, self.y))
+            print("found, going out")
+            cmds = {"header": MOVE,"direction": previous_direction}
 
     def move_to_bounds_center(self):
         ymoy = int((self.ymin+self.ymax)/2)
@@ -145,7 +164,7 @@ class Agent:
 
     def move_to(self, x, y):
         while (self.x != x) or (self.y != y):
-            self.scan_cell()
+            #self.scan_cell()
             dx = self.x - x
             dy = self.y - y
             if dy < 0: dir = DOWN
@@ -159,13 +178,7 @@ class Agent:
             cmds = {"header": 2,
                     "direction": dir}
             self.network.send(cmds)
-            time.sleep(1)
-
-    def zigzag(self):
-        if self.y<self.ymax :
-            self.move_to(self.x+2, self.y+2)
-        time.sleep(1)
-        self.move_to(self.x+2, self.y-2)
+            time.sleep(0.1)
 
     def scan_cell(self):
         print(f"scanning cell : ({self.x},{self.y}) -> value : {self.cell_val}")
@@ -176,10 +189,8 @@ class Agent:
                 print("close to a box")
             case 0.5 :
                 print("I am very close to a key")
-                self.value_log.append(self.cell_val) #keep this last value in memory
             case 0.6 :
                 print("I'm very close to a box")
-                self.value_log.append(self.cell_val)
             case 1.0 :
                 self.network.send({"header" : GET_ITEM_OWNER})
             case _: 
@@ -201,6 +212,19 @@ class Agent:
         else :
             return up_direction, down_direction
         
+    def forget_found_item(self):
+        """forget item values after it was found
+        """
+        for x_item, y_item in self.found_items : 
+            print(f"dx : {np.abs(self.x - x_item)}, dy : {np.abs(self.y-y_item)}")
+            if np.abs(self.x - x_item) <= 2 and np.abs(self.y-y_item) <= 2:
+                print("already found this one, forget it")
+                self.cell_val = 0.0
+        print("cell_val : ", self.cell_val)
+    
+    def get_nb_agents(self):
+        self.network.send({"header":GET_NB_CONNECTED_AGENTS})
+        
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -209,26 +233,40 @@ if __name__ == "__main__":
     agent = Agent(args.server_ip)
     try:    #Automatic control
         print("Hi, i'm an agent : ", agent.agent_id +1)
+        agent.get_nb_agents()
         agent.move_to_bounds_center()
         UP_LR, DOWN_LR = UP_RIGHT, DOWN_RIGHT #start by going right
         while True:
-            while agent.y < agent.ymax-1 : 
+            while agent.y < agent.ymax-1 :
+                if agent.box_discovered and agent.key_discovered : 
+                    print("I'm DONE")
+                    agent.completed = True
+                    break  
                 UP_LR, DOWN_LR = agent.check_walls(UP_LR, DOWN_LR)
                 cmds = {"header": MOVE,"direction": DOWN_LR}
                 agent.network.send(cmds)
-                cell_val = agent.scan_cell()
-                if cell_val > 0 :
-                    agent.search_closely(agent.x, agent.y, cell_val, DOWN_LR)
-                time.sleep(1)
+                time.sleep(0.5)
+                agent.forget_found_item()
+                time.sleep(0.3)
+                if agent.cell_val > 0 :
+                    agent.search_closely(agent.x, agent.y, agent.cell_val, DOWN_LR)
+                
             while agent.y >= agent.ymin+1:
+                if agent.box_discovered and agent.key_discovered : 
+                    print("I'm DONE")
+                    agent.completed = True
+                    break 
                 UP_LR, DOWN_LR = agent.check_walls(UP_LR, DOWN_LR) #defines left or right direction
                 cmds = {"header": MOVE,"direction": UP_LR}
                 agent.network.send(cmds)
-                cell_val = agent.scan_cell()
-                if cell_val > 0:
-                    agent.search_closely(agent.x, agent.y, cell_val, UP_LR)
-                time.sleep(1)
+                time.sleep(0.5)
+                agent.forget_found_item()
+                time.sleep(0.3)
+                if agent.cell_val > 0:
+                    agent.search_closely(agent.x, agent.y, agent.cell_val, UP_LR)
             agent.game_state()
+            if agent.completed : 
+                break
     except KeyboardInterrupt:
         pass
 

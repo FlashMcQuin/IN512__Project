@@ -45,6 +45,7 @@ class Game:
         items.extend(self.keys)
         items.extend(self.boxes)
         offsets = [[(-1, -1), (0, -1), (1, -1), (-1, 0), (0, 0), (1, 0), (-1, 1), (0, 1), (1, 1)], [(-2, -2), (-1, -2), (0, -2), (1, -2), (2, -2), (-2, -1), (2, -1), (-2, 0), (2, 0), (-2, 1), ( 2, 1), (-2, 2), (-1, 2), (0, 2), (1, 2), (2, 2)]]
+        print(f"----------------Items : {items}--------------")
         for item in items:
             for i, sub_list in enumerate(offsets):
                 for dx, dy in sub_list:
