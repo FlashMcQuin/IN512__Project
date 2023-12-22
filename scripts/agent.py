@@ -46,7 +46,7 @@ class Agent:
                 self.cell_val=msg["cell_val"]
             if msg["header"] == GET_DATA:
                 self.cell_val = msg["cell_val"]
-            
+            # Robot finds a key or a box :
             if msg["header"] == BROADCAST_MSG : 
                 if msg["msg type"] == KEY_DISCOVERED and msg["owner"] == self.agent_id:
                     self.key_position = msg["position"]
@@ -54,7 +54,7 @@ class Agent:
                 elif msg["msg type"] == BOX_DISCOVERED and msg["owner"] == self.agent_id : 
                     self.box_position = msg["position"]
                     print("La position de ma box est : ", msg["position"])
-
+            # If the broadcast message says it found the item of the concerned agent
             if msg["header"] == GET_ITEM_OWNER and msg["owner"] == self.agent_id:
                 if msg["type"] == KEY_TYPE :
                     self.key_position = (self.x, self.y)
@@ -81,30 +81,62 @@ class Agent:
             #       on arrête de chercher 
     
     #TODO: CREATE YOUR METHODS HERE...
-    def move_random(self):
-        """move randomly in map
-        """
-        move = np.random.randint(1,9)
-        cmd = {"header" : MOVE, "direction": move}
-        self.network.send(cmd)
+    def search_closely(self, x_prec, y_prec, pre_cell_val, previous_direction):
+        print("Starting Close search")
+        found = False
+        direction_dict = {UP:(UP,UP_LEFT,UP_RIGHT),
+                          DOWN:(DOWN,DOWN_LEFT,DOWN_RIGHT),
+                          LEFT:(LEFT, UP_LEFT, DOWN_LEFT),
+                          RIGHT:(RIGHT, UP_RIGHT, DOWN_RIGHT),
+                          UP_LEFT:(UP_LEFT, UP, LEFT),
+                          UP_RIGHT:(UP_RIGHT, UP, RIGHT), 
+                          DOWN_LEFT:(DOWN_LEFT, DOWN, LEFT), 
+                          DOWN_RIGHT :(DOWN_RIGHT, DOWN, RIGHT)}
+        
+        if previous_direction == UP_RIGHT :
+            directions = [UP_LEFT, UP, UP_RIGHT, RIGHT, DOWN_RIGHT,DOWN ]
+        elif previous_direction == DOWN_RIGHT : 
+            directions = [RIGHT, UP, DOWN, UP_RIGHT, DOWN_RIGHT, DOWN_LEFT]
+            print("starting to scan on the right")
+        elif previous_direction == UP_LEFT : 
+            directions = [UP_RIGHT, UP, UP_LEFT,LEFT, DOWN_LEFT,DOWN]
+        elif previous_direction == DOWN_LEFT :
+            directions = [LEFT, UP, DOWN, UP_LEFT, DOWN_LEFT, DOWN_RIGHT]
+            print("starting to scan on the left")
+        for dir in directions :
+            cmds = {"header": MOVE,"direction": dir}
+            self.network.send(cmds)
+            time.sleep(1)
+            if self.cell_val == 1.0 :
+                print("------found it (2)------------")
+                found = True
+                break
+            elif self.cell_val > pre_cell_val: # agent is getting closer, continue
+                print("Got closer, next step...")
+                time.sleep(1)
+                x, y = self.x, self.y
+                print(f"now scanning {direction_dict[dir]}")
+                for new_dir in direction_dict[dir]:
+                    cmds = {"header": MOVE,"direction": new_dir}
+                    self.network.send(cmds)
+                    time.sleep(1)
+                    if self.cell_val == 1.0 :
+                        print("----------found it (1)----------------")
+                        found = True
+                        break
+                    else : #go back to previous cell
+                        self.move_to(x, y) 
+            else : # wrong way, start again (with a different direction)
+                self.move_to(x_prec, y_prec)
+                time.sleep(1)
 
-    def move_to_bounds_old(self):
-        """agent moves to the place it has been attributed.
-        """
-        print("Actual Y used ---> ", self.y)
-        if self.y <= self.ymin : 
-            print("going up, ymin = ", self.ymin)
-            cmd = {"header" : MOVE, "direction": DOWN}
-            
-        elif self.y >= self.ymax : 
-            print("going down, ymax = ", self.ymax)
-            cmd = {"header" : MOVE, "direction": UP}
-        else : 
-            options = [8,7,3]
-            random_index = np.random.randint(0,3)
-            cmd = {"header" : MOVE, "direction": RIGHT}
-            print("i'm in place, moving forward :", options[random_index])
-        self.network.send(cmd)
+            if found :
+                print("found, going out")
+                cmds = {"header": MOVE,"direction": previous_direction}
+                self.network.send(cmds)
+                self.network.send(cmds)
+                self.network.send(cmds)
+
 
     def move_to_bounds_center(self):
         ymoy = int((self.ymin+self.ymax)/2)
@@ -137,25 +169,23 @@ class Agent:
 
     def scan_cell(self):
         print(f"scanning cell : ({self.x},{self.y}) -> value : {self.cell_val}")
-        if self.cell_val>0:
-            match self.cell_val : 
-                case 0.25 : 
-                    print("close to a key")
-                case 0.3 : 
-                    print("close to a box")
-                case 0.5:
-                    print("I am verty close to a key")
-                    self.value_log.append(self.cell_val) #keep this last value in memory
-                case 0.6:
-                    print("I close to a box")
-                    self.value_log.append(self.cell_val)
-                case 1.0 :
-                    self.network.send({"header" : GET_ITEM_OWNER})
-
-        else : 
-            print(".")
-
+        match self.cell_val :
+            case 0.25 :
+                print("close to a key")
+            case 0.3 :
+                print("close to a box")
+            case 0.5 :
+                print("I am very close to a key")
+                self.value_log.append(self.cell_val) #keep this last value in memory
+            case 0.6 :
+                print("I'm very close to a box")
+                self.value_log.append(self.cell_val)
+            case 1.0 :
+                self.network.send({"header" : GET_ITEM_OWNER})
+            case _: 
+                print(".")
         return self.cell_val
+    
     def game_state(self):
         print(f"Position clé : {self.key_position}, position box : {self.box_position} \n clé decouverte :{self.key_discovered}, box décoverte : {self.box_discovered}, complété : {self.completed}")
     
@@ -170,6 +200,7 @@ class Agent:
             return UP_RIGHT, DOWN_RIGHT
         else :
             return up_direction, down_direction
+        
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -177,7 +208,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     agent = Agent(args.server_ip)
     try:    #Automatic control
-        print("Hi, i'm an agent : ", agent.agent_id)
+        print("Hi, i'm an agent : ", agent.agent_id +1)
         agent.move_to_bounds_center()
         UP_LR, DOWN_LR = UP_RIGHT, DOWN_RIGHT #start by going right
         while True:
@@ -185,16 +216,18 @@ if __name__ == "__main__":
                 UP_LR, DOWN_LR = agent.check_walls(UP_LR, DOWN_LR)
                 cmds = {"header": MOVE,"direction": DOWN_LR}
                 agent.network.send(cmds)
-                agent.scan_cell()
+                cell_val = agent.scan_cell()
+                if cell_val > 0 :
+                    agent.search_closely(agent.x, agent.y, cell_val, DOWN_LR)
                 time.sleep(1)
-            while agent.y >= agent.ymin+1 :
-                UP_LR, DOWN_LR = agent.check_walls(UP_LR, DOWN_LR)
+            while agent.y >= agent.ymin+1:
+                UP_LR, DOWN_LR = agent.check_walls(UP_LR, DOWN_LR) #defines left or right direction
                 cmds = {"header": MOVE,"direction": UP_LR}
                 agent.network.send(cmds)
-                agent.scan_cell()
+                cell_val = agent.scan_cell()
+                if cell_val > 0:
+                    agent.search_closely(agent.x, agent.y, cell_val, UP_LR)
                 time.sleep(1)
-
-            time.sleep(1)
             agent.game_state()
     except KeyboardInterrupt:
         pass
@@ -218,8 +251,6 @@ DIRECTIONS :
 6 <-> UR
 7 <-> DL
 8 <-> DR
-
-
 """
 
 
