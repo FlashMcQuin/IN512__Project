@@ -43,22 +43,19 @@ class Agent:
         while self.running:
             msg = self.network.receive()
             print("Message from : ", msg["sender"], " : ", msg)
-            if msg["header"]==MOVE:
+            if msg["header"]==MOVE: # Update position and cell value
                 self.x=msg["x"]
                 self.y=msg["y"]
                 self.cell_val=msg["cell_val"]
-            if msg["header"] == GET_DATA:
-                self.cell_val = msg["cell_val"]
-            # Robot finds a key or a box :
-            if msg["header"] == BROADCAST_MSG : 
-                if msg["msg type"] == KEY_DISCOVERED and msg["owner"] == self.agent_id:
+
+            if msg["header"] == BROADCAST_MSG : # Handle a broadcast message
+                if msg["msg type"] == KEY_DISCOVERED and msg["owner"] == self.agent_id: # My key has been found
                     self.key_position = msg["position"]
                     print("La position de ma clé est : ", msg["position"])
-                elif msg["msg type"] == BOX_DISCOVERED and msg["owner"] == self.agent_id : 
+                elif msg["msg type"] == BOX_DISCOVERED and msg["owner"] == self.agent_id : # My box has been found
                     self.box_position = msg["position"]
                     print("La position de ma box est : ", msg["position"])
-                else :
-                    #C'est pas ma box mais je l'enregistre quand même
+                else : # The item of another agent has been found
                     self.found_items.append(msg["position"])
 
             # If the broadcast message says it found the item of the concerned agent
@@ -83,54 +80,56 @@ class Agent:
                                         "msg type": discovered, 
                                         "position":(self.x, self.y),
                                         "owner": msg["owner"]})
-            # TODO : On peut créer une action qui ajoute quel objet de quel agent a été trouvé à un dictionnaire
-            # -> permet monitorer où chacun en est, quand tout le monde connait la position de ses objets, 
-            #       on arrête de chercher 
-            if len(self.found_items) >= self.nb_agents*2 :
-                print("------------------we all know where our stuff is---------------------")
-                if not self.key_discovered :
-                    x, y = self.key_position
-                    self.move_to(x, y)
-                if not self.box_discovered : 
-                    x, y = self.box_position
-                    self.move_to(x, y)
-            if msg["header"] == GET_NB_CONNECTED_AGENTS  :
+                    self.found_items.append((self.x, self.y))
+
+            if msg["header"] == GET_NB_CONNECTED_AGENTS :
                 self.nb_agents = msg["nb_connected_agents"]
                 print("nb agents : ", self.nb_agents)
+            # TODO : On peut créer une action qui ajoute quel objet de quel agent a été trouvé à un dictionnaire
+            # -> permet monitorer où chacun en est, quand tout le monde connait la position de ses objets, 
+            #    on arrête de chercher 
+            
+            if len(self.found_items) >= self.nb_agents*2 :
+                print(f"------------------we all know where our stuff is : ---------------------\n found items: {len(self.found_items)}, \n items : {self.found_items} ")
+                if self.key_discovered is False :
+                    x_key, y_key = self.key_position
+                    print("get my key")
+                    self.move_to(x_key, y_key)
+                if self.box_discovered is False:
+                    x, y = self.box_position
+                    print("get my box")
+                    self.move_to(x, y)
+                print("going to sleep for 5")
+                time.sleep(5)
 
-    
     #TODO: CREATE YOUR METHODS HERE...
     def search_closely(self, x_prec, y_prec, pre_cell_val, previous_direction):
         print("Starting Close search")
         found = False
-        direction_dict = {UP:(UP,UP_LEFT,UP_RIGHT),
-                          DOWN:(DOWN,DOWN_LEFT,DOWN_RIGHT),
-                          LEFT:(LEFT, UP_LEFT, DOWN_LEFT),
-                          RIGHT:(RIGHT, UP_RIGHT, DOWN_RIGHT),
-                          UP_LEFT:(UP_LEFT, UP, LEFT),
-                          UP_RIGHT:(UP_RIGHT, UP, RIGHT), 
-                          DOWN_LEFT:(DOWN_LEFT, DOWN, LEFT), 
-                          DOWN_RIGHT :(DOWN_RIGHT, DOWN, RIGHT)}
+        direction_dict = {UP:(UP,UP_LEFT,UP_RIGHT,LEFT,RIGHT),
+                          DOWN:(DOWN,DOWN_LEFT,DOWN_RIGHT, LEFT, RIGHT),
+                          LEFT:(LEFT, UP_LEFT, DOWN_LEFT, UP, DOWN),
+                          RIGHT:(RIGHT, UP_RIGHT, DOWN_RIGHT, UP, DOWN),
+                          UP_LEFT:(UP_LEFT, UP, LEFT, DOWN_LEFT, UP_RIGHT),
+                          UP_RIGHT:(UP_RIGHT, UP, RIGHT, DOWN_RIGHT, UP_LEFT), 
+                          DOWN_LEFT:(DOWN_LEFT, DOWN, LEFT, UP_LEFT, DOWN_RIGHT), 
+                          DOWN_RIGHT :(DOWN_RIGHT, DOWN, RIGHT, UP_RIGHT, DOWN_LEFT)}
         
         if previous_direction == UP_RIGHT :
-            directions = [UP_LEFT, UP, UP_RIGHT, RIGHT, DOWN_RIGHT,DOWN ]
+            directions = [UP_LEFT, UP, UP_RIGHT, RIGHT, DOWN_RIGHT]
         elif previous_direction == DOWN_RIGHT : 
-            directions = [UP,UP_RIGHT,RIGHT, DOWN_RIGHT,DOWN, DOWN_LEFT]
+            directions = [UP_RIGHT,RIGHT, DOWN_RIGHT,DOWN, DOWN_LEFT]
             print("starting to scan on the right")
         elif previous_direction == UP_LEFT : 
-            directions = [UP_RIGHT, UP, UP_LEFT,LEFT, DOWN_LEFT,DOWN]
+            directions = [RIGHT, UP_RIGHT, UP, UP_LEFT,LEFT, DOWN_LEFT]
         elif previous_direction == DOWN_LEFT :
-            directions = [LEFT, UP, DOWN, UP_LEFT, DOWN_LEFT, DOWN_RIGHT]
+            directions = [UP_LEFT, LEFT, DOWN_LEFT, DOWN, DOWN_RIGHT]
             print("starting to scan on the left")
         for dir in directions :
             cmds = {"header": MOVE,"direction": dir}
             self.network.send(cmds)
             time.sleep(1)
-            if self.cell_val == 1.0 :
-                print("------found it (2)------------")
-                found = True
-                break
-            elif self.cell_val > pre_cell_val: # agent is getting closer, continue
+            if self.cell_val > pre_cell_val: # agent is getting closer, continue
                 print("Got closer, next step...")
                 time.sleep(1)
                 x, y = self.x, self.y
@@ -140,13 +139,17 @@ class Agent:
                     self.network.send(cmds)
                     time.sleep(1)
                     if self.cell_val == 1.0 :
-                        print("----------found it (1)----------------")
+                        print("---------- found it --------------")
                         found = True
                         break
                     else : #go back to previous cell
                         self.move_to(x, y) 
                 if found : 
                     break
+            elif self.cell_val == 1.0 : # shouldn't happen, but just in case
+                print("------found it (2)------------")
+                found = True
+                break
             else : # wrong way, start again (with a different direction)
                 self.move_to(x_prec, y_prec)
                 time.sleep(1)
@@ -164,7 +167,6 @@ class Agent:
 
     def move_to(self, x, y):
         while (self.x != x) or (self.y != y):
-            #self.scan_cell()
             dx = self.x - x
             dy = self.y - y
             if dy < 0: dir = DOWN
@@ -201,7 +203,7 @@ class Agent:
         print(f"Position clé : {self.key_position}, position box : {self.box_position} \n clé decouverte :{self.key_discovered}, box décoverte : {self.box_discovered}, complété : {self.completed}")
     
     def check_walls(self, up_direction, down_direction):
-        """checks for walls, if there is, changes the direction of the zigzags
+        """checks for walls. If there is, changes the direction of the zigzags
         """
         if self.x == self.w-1: 
             print("wall !")
@@ -245,12 +247,11 @@ if __name__ == "__main__":
                 UP_LR, DOWN_LR = agent.check_walls(UP_LR, DOWN_LR)
                 cmds = {"header": MOVE,"direction": DOWN_LR}
                 agent.network.send(cmds)
-                time.sleep(0.5)
+                time.sleep(0.3)
                 agent.forget_found_item()
                 time.sleep(0.3)
                 if agent.cell_val > 0 :
                     agent.search_closely(agent.x, agent.y, agent.cell_val, DOWN_LR)
-                
             while agent.y >= agent.ymin+1:
                 if agent.box_discovered and agent.key_discovered : 
                     print("I'm DONE")
@@ -259,14 +260,16 @@ if __name__ == "__main__":
                 UP_LR, DOWN_LR = agent.check_walls(UP_LR, DOWN_LR) #defines left or right direction
                 cmds = {"header": MOVE,"direction": UP_LR}
                 agent.network.send(cmds)
-                time.sleep(0.5)
+                time.sleep(0.3)
                 agent.forget_found_item()
                 time.sleep(0.3)
                 if agent.cell_val > 0:
                     agent.search_closely(agent.x, agent.y, agent.cell_val, UP_LR)
             agent.game_state()
             if agent.completed : 
-                break
+                cmds = {"header": MOVE,"direction": STAND}
+                agent.network.send(cmds)
+                time.sleep(10)
     except KeyboardInterrupt:
         pass
 

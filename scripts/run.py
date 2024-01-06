@@ -3,7 +3,7 @@ import subprocess
 def open_terminal(command):
     subprocess.Popen(['start', 'cmd', '/k', command], shell=True)
 
-nb_agents = 2
+nb_agents = 1
 open_terminal(f'python scripts/server.py -nb {nb_agents}')
 for i in range(nb_agents):
     open_terminal('python scripts/agent.py')

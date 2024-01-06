@@ -89,12 +89,13 @@ class Game:
 
 
     def handle_item_owner_request(self, agent_id):
+        """Determines if the item is a key or a box by comparing the positions of the agent and the items."""
         if self.map_real[self.agents[agent_id].y, self.agents[agent_id].x] != 1.0:  #make sure the agent is located on an item
             return {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": None}
         for i, key in enumerate(self.keys): #check if it's a key
             if (self.agents[agent_id].x == key.x) and (self.agents[agent_id].y == key.y):
                 return  {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": i, "type": KEY_TYPE}
-        for i, box in enumerate(self.boxes):    #check if it's a box
+        for i, box in enumerate(self.boxes): #check if it's a box
             if (self.agents[agent_id].x == box.x) and (self.agents[agent_id].y == box.y):
                 return  {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": i, "type": BOX_TYPE}
 
