@@ -15,13 +15,15 @@ class Agent:
     def __init__(self, server_ip):
 
         #TODO: DEFINE YOUR ATTRIBUTES HERE
-        self.searching = True
         self.nb_agents = 99
         self.key_position = None
         self.box_position = None
+        self.searching = True
+
         self.key_discovered = False
         self.box_discovered = False
         self.completed = False
+        
         self.found_items = []
         #DO NOT TOUCH THE FOLLOWING INSTRUCTIONS
         self.network = Network(server_ip=server_ip)
@@ -116,11 +118,13 @@ class Agent:
                     self.move_to(x_box, y_box)
                     print("box done")
                     time.sleep(2)
+                self.completed = True
                 print("going to sleep for 5")
                 time.sleep(5)
 
     #TODO: CREATE YOUR METHODS HERE...
     def search_closely(self, x_prec, y_prec, pre_cell_val, previous_direction):
+        saved_x, saved_y = self.x, self.y
         print("Starting Close search")
         found = False
         direction_dict = {UP:(UP,UP_LEFT,UP_RIGHT,LEFT,RIGHT),
@@ -174,6 +178,8 @@ class Agent:
         if found :
             self.network.send({"header" : GET_ITEM_OWNER})
             print("going out")
+            # Goes back to original position
+            self.move_to(saved_x, saved_y)
             cmds = {"header": MOVE,"direction": previous_direction}
 
     def move_to_bounds_center(self):
@@ -222,10 +228,11 @@ class Agent:
     def check_walls(self, up_direction, down_direction):
         """checks for walls. If there is, changes the direction of the zigzags
         """
-        if self.x == self.w-1: 
+        if self.x >= self.w-3: 
             print("wall !")
             return UP_LEFT, DOWN_LEFT
-        elif self.x == 0 : 
+
+        elif self.x <= 3 : 
             print("wall !")
             return UP_RIGHT, DOWN_RIGHT
         else :
@@ -242,11 +249,12 @@ class Agent:
             print("cell_val : ", self.cell_val)
 
     def remember_found_item(self):
-        for x_item, y_item in self.found_items : 
+        for x_item, y_item in self.found_items :
             if np.abs(self.x - x_item) <= 2 and np.abs(self.y-y_item) <= 2:
                 print("already found this one, forget it")
                 self.cell_val = 1.0
         print("cell_val : ", self.cell_val)
+
     def get_nb_agents(self):
         self.network.send({"header":GET_NB_CONNECTED_AGENTS})
         
@@ -264,7 +272,7 @@ if __name__ == "__main__":
         UP_LR, DOWN_LR = UP_RIGHT, DOWN_RIGHT #start by going right
         while True:
             while agent.searching : 
-                while agent.y < agent.ymax-1 :
+                while agent.y < agent.ymax-3 :
                     if agent.box_discovered and agent.key_discovered : 
                         print("I'm DONE")
                         agent.completed = True
@@ -277,7 +285,7 @@ if __name__ == "__main__":
                     time.sleep(0.3)
                     if agent.cell_val > 0 :
                         agent.search_closely(agent.x, agent.y, agent.cell_val, DOWN_LR)
-                while agent.y >= agent.ymin+1:
+                while agent.y >= agent.ymin+3:
                     if agent.box_discovered and agent.key_discovered : 
                         print("I'm DONE")
                         agent.completed = True

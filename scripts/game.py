@@ -18,8 +18,10 @@ class Game:
         self.nb_agents = nb_agents
         self.nb_ready = 0
         self.moves = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
+        self.all_items_positions = []
         self.load_map(map_id)
         self.gui = GUI(self)
+        
 
     def initial_position(self, w, h) : 
         x = np.random.randint(w)
@@ -38,6 +40,9 @@ class Game:
             self.agents.append(Agent_game(i+1, self.map_cfg[f"agent_{i+1}"]["x"], self.map_cfg[f"agent_{i+1}"]["y"], self.map_cfg[f"agent_{i+1}"]["color"]))
             self.keys.append(Key(self.map_cfg[f"key_{i+1}"]["x"], self.map_cfg[f"key_{i+1}"]["y"]))
             self.boxes.append(Box(self.map_cfg[f"box_{i+1}"]["x"], self.map_cfg[f"box_{i+1}"]["y"]))
+            self.all_items_positions.append([self.map_cfg[f"key_{i+1}"]["x"], self.map_cfg[f"key_{i+1}"]["y"]])
+            self.all_items_positions.append([self.map_cfg[f"box_{i+1}"]["x"], self.map_cfg[f"box_{i+1}"]["y"]])
+            print ("all items : ", self.all_items_positions)
         
         self.map_w, self.map_h = self.map_cfg["width"], self.map_cfg["height"]
         self.map_real = np.zeros(shape=(self.map_h, self.map_w))

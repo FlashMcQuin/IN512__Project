@@ -9,7 +9,6 @@ from my_constants import *
 
 img_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources", "img")
 
-
 class GUI:
     def __init__(self, game, fps=10, cell_size=40):
         self.game = game
@@ -130,7 +129,8 @@ class GUI:
         for i in range(self.game.nb_agents):   
             self.game.agents[i].history.append([self.game.agents[i].x, self.game.agents[i].y])
             for c in range (len(self.game.agents[i].history)):
-                self.color_cell(self.game.agents[i].history[c][0], self.game.agents[i].history[c][1], i)
+                if [self.game.agents[i].history[c][0], self.game.agents[i].history[c][1]] not in self.game.all_items_positions :
+                    self.color_cell(self.game.agents[i].history[c][0], self.game.agents[i].history[c][1], i)
                 #self.display_coef()  
                 if self.game.agents[i].history[c] not in cases :
                     cases.append(self.game.agents[i].history[c])
