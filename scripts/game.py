@@ -35,7 +35,7 @@ class Game:
         self.agents, self.keys, self.boxes = [], [], []
         for i in range(self.nb_agents):
 
-            self.agents.append(Agent_game(i+1, self.initial_position(20, 20)[0], self.initial_position(20, 20)[1], self.map_cfg[f"agent_{i+1}"]["color"]))
+            self.agents.append(Agent_game(i+1, self.map_cfg[f"agent_{i+1}"]["x"], self.map_cfg[f"agent_{i+1}"]["y"], self.map_cfg[f"agent_{i+1}"]["color"]))
             self.keys.append(Key(self.map_cfg[f"key_{i+1}"]["x"], self.map_cfg[f"key_{i+1}"]["y"]))
             self.boxes.append(Box(self.map_cfg[f"box_{i+1}"]["x"], self.map_cfg[f"box_{i+1}"]["y"]))
         
@@ -87,7 +87,7 @@ class Game:
                 self.agents[agent_id].x, self.agents[agent_id].y = x + dx, y + dy
         return {"sender": GAME_ID, "header": MOVE, "x": self.agents[agent_id].x, "y": self.agents[agent_id].y, "cell_val": self.map_real[self.agents[agent_id].y, self.agents[agent_id].x]}
 
-
+    '''
     def handle_item_owner_request(self, agent_id):
         """Determines if the item is a key or a box by comparing the positions of the agent and the items."""
         if self.map_real[self.agents[agent_id].y, self.agents[agent_id].x] != 1.0:  #make sure the agent is located on an item
@@ -98,6 +98,22 @@ class Game:
         for i, box in enumerate(self.boxes): #check if it's a box
             if (self.agents[agent_id].x == box.x) and (self.agents[agent_id].y == box.y):
                 return  {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": i, "type": BOX_TYPE}
+    '''
+    def handle_item_owner_request(self, agent_id):
+        if self.map_real[self.agents[agent_id].y, self.agents[agent_id].x] != 1.0:  #make sure the agent is located on an item
+            return {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": None}
+        for i, key in enumerate(self.keys): #check if it's a key
+            if (self.agents[agent_id].x == key.x) and (self.agents[agent_id].y == key.y):
+                self.agents[agent_id].key_position = (key.x, key.y)
+                if agent_id == i :
+                    self.agents[agent_id].key_discovered = True
+                return  {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": i, "type": KEY_TYPE}
+        for i, box in enumerate(self.boxes):    #check if it's a box
+            if (self.agents[agent_id].x == box.x) and (self.agents[agent_id].y == box.y):
+                self.agents[agent_id].box_position = (box.x, box.y)
+                if agent_id == i :
+                    self.agents[agent_id].box_discovered = True
+                return  {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": i, "type": BOX_TYPE}
 
 
 class Agent_game:
@@ -107,6 +123,10 @@ class Agent_game:
         self.x, self.y = x, y
         self.history.append([self.x, self.y])
         self.color = color
+        self.key_position = False
+        self.box_position = False 
+        self.key_discovered = False
+        self.box_discovered = False
 
     def __repr__(self):
         return f"Agent's id: {self.id}, x: {self.x}, y: {self.y}, color: {self.color}"
