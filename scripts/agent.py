@@ -23,7 +23,7 @@ class Agent:
         self.key_discovered = False
         self.box_discovered = False
         self.completed = False
-        
+
         self.found_items = []
         #DO NOT TOUCH THE FOLLOWING INSTRUCTIONS
         self.network = Network(server_ip=server_ip)
@@ -106,6 +106,7 @@ class Agent:
             if len(self.found_items) >= self.nb_agents*2 :
                 print(f"------------------we all know where our stuff is : ---------------------\n found items: {len(self.found_items)}, \n items : {self.found_items} ")
                 print(self.x, self.y)
+                self.completed = True
                 if self.key_discovered is False :
                     x_key, y_key = self.key_position
                     print(f"get my key at {self.key_position}")
@@ -118,45 +119,42 @@ class Agent:
                     self.move_to(x_box, y_box)
                     print("box done")
                     time.sleep(2)
-                self.completed = True
+                
                 print("going to sleep for 5")
                 time.sleep(5)
 
     #TODO: CREATE YOUR METHODS HERE...
     def search_closely(self, x_prec, y_prec, pre_cell_val, previous_direction):
-        saved_x, saved_y = self.x, self.y
         print("Starting Close search")
         found = False
-        direction_dict = {UP:(UP,UP_LEFT,UP_RIGHT,LEFT,RIGHT),
-                          DOWN:(DOWN,DOWN_LEFT,DOWN_RIGHT, LEFT, RIGHT),
-                          LEFT:(LEFT, UP_LEFT, DOWN_LEFT, UP, DOWN),
-                          RIGHT:(RIGHT, UP_RIGHT, DOWN_RIGHT, UP, DOWN),
-                          UP_LEFT:(UP_LEFT, UP, LEFT, DOWN_LEFT, UP_RIGHT),
-                          UP_RIGHT:(UP_RIGHT, UP, RIGHT, DOWN_RIGHT, UP_LEFT), 
-                          DOWN_LEFT:(DOWN_LEFT, DOWN, LEFT, UP_LEFT, DOWN_RIGHT), 
-                          DOWN_RIGHT :(DOWN_RIGHT, DOWN, RIGHT, UP_RIGHT, DOWN_LEFT)}
-        
-        if previous_direction == UP_RIGHT :
-            directions = [UP_LEFT, UP, UP_RIGHT, RIGHT, DOWN_RIGHT]
-        elif previous_direction == DOWN_RIGHT : 
-            directions = [UP_RIGHT,RIGHT, DOWN_RIGHT,DOWN, DOWN_LEFT]
-            print("starting to scan on the right")
-        elif previous_direction == UP_LEFT : 
-            directions = [RIGHT, UP_RIGHT, UP, UP_LEFT,LEFT, DOWN_LEFT]
-        elif previous_direction == DOWN_LEFT :
-            directions = [UP_LEFT, LEFT, DOWN_LEFT, DOWN, DOWN_RIGHT]
-            print("starting to scan on the left")
+        directions = {UP_RIGHT : (UP_LEFT, RIGHT, RIGHT, DOWN, DOWN),
+                      UP_LEFT : (UP_RIGHT, LEFT,LEFT, DOWN, DOWN),
+                      DOWN_RIGHT : (UP_RIGHT, DOWN,DOWN, LEFT, LEFT),
+                      DOWN_LEFT : (UP_LEFT, DOWN, DOWN, RIGHT, RIGHT)}
+        #dx = (x_new-x_prev)
+        direction_dict = {(0,-1):(RIGHT, UP,LEFT, LEFT, DOWN),
+                          (0,1):(RIGHT, DOWN,LEFT, LEFT, UP),
+                          (-1,0):(UP, LEFT, DOWN, DOWN, RIGHT),
+                          (1,0):(UP, RIGHT, DOWN, DOWN, LEFT),
+                          (-1,-1):(UP_RIGHT, LEFT,LEFT, DOWN, DOWN),
+                          (1,-1):(UP_LEFT, RIGHT, RIGHT, DOWN, DOWN), 
+                          (-1,1):(UP_LEFT, DOWN, DOWN, RIGHT, RIGHT), 
+                          (1,1) :(UP_RIGHT, DOWN,DOWN, LEFT, LEFT)}
 
-        for dir in directions :
+        saved_x, saved_y = self.x, self.y
+        for dir in directions[previous_direction] :
+            if self.cell_val == 1.0 : # shouldn't happen, but just in case
+                print("------found it first try !------------")
+                found = True
+                break
             cmds = {"header": MOVE,"direction": dir}
             self.network.send(cmds)
-            time.sleep(1)
+            time.sleep(0.5)
             if self.cell_val > pre_cell_val: # agent is getting closer, continue
                 print("Got closer, next step...")
-                time.sleep(1)
-                x, y = self.x, self.y
-                print(f"now scanning {direction_dict[dir]}")
-                for new_dir in direction_dict[dir]:
+                time.sleep(0.5)
+                print(f"now scanning {direction_dict[(self.x-saved_x, self.y-saved_y)]}")
+                for new_dir in direction_dict[(self.x-saved_x, self.y-saved_y)]:
                     cmds = {"header": MOVE,"direction": new_dir}
                     self.network.send(cmds)
                     time.sleep(1)
@@ -164,17 +162,9 @@ class Agent:
                         print("---------- found it --------------")
                         found = True
                         break
-                    else : self.move_to(x, y) #go back to previous cell
                 if found : 
                     break
-            elif self.cell_val == 1.0 : # shouldn't happen, but just in case
-                print("------found it (2)------------")
-                found = True
-                break
-            else : # wrong way, start again (with a different direction)
-                self.move_to(x_prec, y_prec)
-                time.sleep(1)
-
+            time.sleep(0.5)
         if found :
             self.network.send({"header" : GET_ITEM_OWNER})
             print("going out")
