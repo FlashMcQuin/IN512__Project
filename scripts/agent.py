@@ -62,7 +62,6 @@ class Agent:
                 # Always keep count of the number of items found in the game
                 if (self.x, self.y) not in self.found_items : 
                     self.found_items.append((self.x, self.y))
-                
 
             # If the broadcast message says it found the item of the concerned agent
             if msg["header"] == GET_ITEM_OWNER :
@@ -244,9 +243,11 @@ if __name__ == "__main__":
         agent.get_nb_agents()
         time.sleep((agent.agent_id+1)/2)
         agent.move_to_bounds_center()
-
+        bord = 3
+        if agent.nb_agents>= 4 : 
+            bord = 2
         # Special strategy for 4 agents : the agents go in a straight line
-        if agent.nb_agents >= 4 : 
+        if agent.nb_agents >= 5 : 
             while ((False in agent.box_position_list) or (False in agent.key_position_list)):
                 if agent.box_discovered and agent.key_discovered : 
                     print("I'm DONE")
@@ -265,6 +266,7 @@ if __name__ == "__main__":
                     cmds = {"header": MOVE,"direction": RIGHT}
                     agent.network.send(cmds)
                 time.sleep(0.4)
+                print("position lists for key and box : ", agent.key_position_list, agent.box_position_list )
         # Zig Zag strategy for less agents
         else : 
             UP_LR, DOWN_LR = UP_RIGHT, DOWN_RIGHT # the agent starts by going from left to right
@@ -273,7 +275,7 @@ if __name__ == "__main__":
                 The first one is "agent moves until it gets to the top of its zone"
                 The second loop is "[...] until the bottom of its zone".
                 """
-                while agent.y < agent.ymax-3 :
+                while agent.y < agent.ymax-bord :
                     # Stops the loop once both items are discovered
                     if agent.box_discovered and agent.key_discovered :
                         print("I'm DONE")
@@ -288,7 +290,7 @@ if __name__ == "__main__":
                     agent.network.send(cmds)
                     time.sleep(0.3)
 
-                while agent.y >= agent.ymin+3:
+                while agent.y >= agent.ymin+bord:
                     if agent.box_discovered and agent.key_discovered : 
                         print("I'm DONE")
                         agent.completed = True
