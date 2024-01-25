@@ -21,6 +21,10 @@ class Game:
         self.all_items_positions = []
         self.load_map(map_id)
         self.gui = GUI(self)
+        self.keys_positions = [False for i in range (self.nb_agents)]
+        self.boxes_positions = [False for i in range (self.nb_agents)]
+        self.keys_discovered = [False for i in range (self.nb_agents)]
+        self.boxes_discovered = [False for i in range (self.nb_agents)]
         
 
     def initial_position(self, w, h) : 
@@ -104,7 +108,7 @@ class Game:
             if (self.agents[agent_id].x == box.x) and (self.agents[agent_id].y == box.y):
                 return  {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": i, "type": BOX_TYPE}
     '''
-    def handle_item_owner_request(self, agent_id):
+    def handle_item_owner_request_dont_work(self, agent_id):
         if self.map_real[self.agents[agent_id].y, self.agents[agent_id].x] != 1.0:  #make sure the agent is located on an item
             return {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": None}
         for i, key in enumerate(self.keys): #check if it's a key
@@ -118,6 +122,26 @@ class Game:
                 self.agents[agent_id].box_position = (box.x, box.y)
                 if agent_id == i :
                     self.agents[agent_id].box_discovered = True
+                return  {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": i, "type": BOX_TYPE}
+            
+    def handle_item_owner_request(self, agent_id):
+        if self.map_real[self.agents[agent_id].y, self.agents[agent_id].x] != 1.0:  #make sure the agent is located on an item
+            return {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": None}
+        for i, key in enumerate(self.keys): #check if it's a key
+            if (self.agents[agent_id].x == key.x) and (self.agents[agent_id].y == key.y):
+                self.keys_positions[i]=[key.x, key.y]
+                #self.agents[agent_id].key_position = (key.x, key.y)
+                if agent_id == i :
+                    #self.agents[agent_id].key_discovered = True
+                    self.keys_discovered[i] = True
+                return  {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": i, "type": KEY_TYPE}
+        for i, box in enumerate(self.boxes):    #check if it's a box
+            if (self.agents[agent_id].x == box.x) and (self.agents[agent_id].y == box.y):
+                #self.agents[agent_id].box_position = (box.x, box.y)
+                self.boxes_positions[i]=[box.x, box.y]
+                if agent_id == i :
+                    self.boxes_discovered[i] = True
+                    #self.agents[agent_id].box_discovered = True
                 return  {"sender": GAME_ID, "header": GET_ITEM_OWNER, "owner": i, "type": BOX_TYPE}
 
 

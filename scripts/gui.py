@@ -61,18 +61,21 @@ class GUI:
             rect = texte.get_rect(center=(x, y))
             self.screen.blit(texte, rect)
 
-        attributs = ['id', 'key_position', 'box_position', 'key_discovered', 'box_discovered']
+        attributs = ['id', 'keys_positions', 'boxes_positions', 'keys_discovered', 'boxes_discovered']
        
         # Attributs des agents
         for i in range(self.game.nb_agents):
-            agent = self.game.agents[i]
+            #agent = self.game.agents[i]
             for j, attribut in enumerate(attributs):
-                valeur = str(getattr(agent, attribut))
-                x = coin_sup_gauche[0] + (i+1) * largeur_colonne + largeur_colonne / 2
-                y = coin_sup_gauche[1] + j * hauteur_ligne + hauteur_ligne / 2
-                font = pygame.font.Font(None, 24)
-                texte = font.render(valeur, True, BLACK)
-                rect = texte.get_rect(center=(x, y))
+                if attribut == 'id' :
+                    valeur = self.game.agents[i].id
+                else :
+                    valeur = str(getattr(self.game, attribut)[i])
+                    x = coin_sup_gauche[0] + (i+1) * largeur_colonne + largeur_colonne / 2
+                    y = coin_sup_gauche[1] + j * hauteur_ligne + hauteur_ligne / 2
+                    font = pygame.font.Font(None, 24)
+                    texte = font.render(valeur, True, BLACK)
+                    rect = texte.get_rect(center=(x, y))
                 self.screen.blit(texte, rect)
     def create_items(self):
         #box
