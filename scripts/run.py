@@ -1,3 +1,6 @@
+"""
+This script was created to launch all terminals at once, and start the game easier.
+"""
 import subprocess
 
 def open_terminal(command):

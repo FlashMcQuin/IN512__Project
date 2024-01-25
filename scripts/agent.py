@@ -59,6 +59,10 @@ class Agent:
                     self.box_position_list[msg["owner"]] = True
                     if msg["owner"] == self.agent_id : # My box has been found
                         self.box_position = msg["position"]
+                # Always keep count of the number of items found in the game
+                if (self.x, self.y) not in self.found_items : 
+                    self.found_items.append((self.x, self.y))
+                
 
             # If the broadcast message says it found the item of the concerned agent
             if msg["header"] == GET_ITEM_OWNER :
@@ -87,26 +91,34 @@ class Agent:
         
     #TODO: CREATE YOUR METHODS HERE...
     def go_to_final_position(self) :
-        """Goes to the known postions of the items that haven't been collected yet.
-        """
-        print("Le jeu est terminé, je vais à ma position finale")
-        if not self.key_discovered :
-            self.move_to(self.key_position[0], self.key_position[1])
-            self.key_discovered = True
-        
-            time.sleep(2)
-        self.move_to(self.box_position[0], self.box_position[1])
-        self.box_discovered = True
-        time.sleep(15)
+            """once all the agents know where their items are, they stop searching and go to find their missing items
+            """
+            print("Le jeu est terminé, je vais à ma position finale")
+            if not self.key_discovered :
+                self.move_to(self.key_position[0], self.key_position[1])
+                self.network.send({"header" : GET_ITEM_OWNER})
+                self.key_discovered = True
+                time.sleep(2)
+
+            self.move_to(self.box_position[0], self.box_position[1])
+            self.network.send({"header" : GET_ITEM_OWNER})
+            self.box_discovered = True
+            time.sleep(15)
 
     def search_closely(self, pre_cell_val, previous_direction):
-        print("Starting Close search at ", self.cell_val, "and ", pre_cell_val)
+        """This function is called when an angent comes close to an item.
+        It follows a special strategy to progress towards the highest potential, which is the item.
+
+        Args:
+            pre_cell_val : cell value when the function is called.
+            previous_direction : the move of the agent just before calling the function.
+        """
         found = False
         directions = {UP_RIGHT : (UP_LEFT, RIGHT, RIGHT, DOWN, DOWN),
                       UP_LEFT : (UP_RIGHT, LEFT,LEFT, DOWN, DOWN),
                       DOWN_RIGHT : (UP_RIGHT, DOWN,DOWN, LEFT, LEFT),
                       DOWN_LEFT : (UP_LEFT, DOWN, DOWN, RIGHT, RIGHT),
-                      RIGHT : (DOWN, RIGHT, UP, UP, LEFT)}
+                      RIGHT : (UP, RIGHT,DOWN, DOWN, LEFT)}
         #dx = (x_new-x_prev)
         direction_dict = {(0,-1):(RIGHT, UP,LEFT, LEFT, DOWN),
                           (0,1):(RIGHT, DOWN,LEFT, LEFT, UP),
@@ -126,7 +138,7 @@ class Agent:
             cmds = {"header": MOVE,"direction": dir}
             self.network.send(cmds)
             time.sleep(0.5)
-            if self.cell_val > pre_cell_val: # agent is getting closer, continue
+            if self.cell_val > pre_cell_val: # agent is getting closer, continue searching
                 if self.cell_val == 1.0 :
                     print("------found it 2nd try !------------")
                     found = True
@@ -148,7 +160,7 @@ class Agent:
         if found :
             self.network.send({"header" : GET_ITEM_OWNER})
             print("going out")
-            # Goes back to original position
+            # Goes back to original position, before close_search() was called.
             self.move_to(saved_x, saved_y)
             cmds = {"header": MOVE,"direction": previous_direction}
 
@@ -181,6 +193,8 @@ class Agent:
             time.sleep(0.1)
     
     def game_state(self):
+        """prints useful information in the console for the concerned agent.
+        """
         print(f"Position clé : {self.key_position}, position box : {self.box_position} \n clé decouverte :{self.key_discovered}, box décoverte : {self.box_discovered}, complété : {self.completed} ")
         print(f"found items: {len(self.found_items)}")
 
@@ -228,7 +242,7 @@ if __name__ == "__main__":
         #We add sleep times to give the program enough time to synchronize between every thread 
         time.sleep(2)
         agent.get_nb_agents()
-        time.sleep(2)
+        time.sleep((agent.agent_id+1)/2)
         agent.move_to_bounds_center()
 
         # Special strategy for 4 agents : the agents go in a straight line
@@ -238,14 +252,19 @@ if __name__ == "__main__":
                     print("I'm DONE")
                     agent.completed = True
                     break 
-                agent.forget_found_item()
-                time.sleep(0.3)
-                if agent.cell_val > 0 :
-                    agent.search_closely(agent.cell_val, RIGHT)
-                time.sleep(0.3)
-                cmds = {"header": MOVE,"direction": RIGHT}
-                agent.network.send(cmds)
-                time.sleep(0.3)
+                elif agent.x == agent.w :
+                    cmds = {"header": MOVE,"direction": STAND}
+                    agent.network.send(cmds)
+                    time.sleep(1)
+                else:
+                    agent.forget_found_item()
+                    time.sleep(0.3)
+                    if agent.cell_val > 0 :
+                        agent.search_closely(agent.cell_val, RIGHT)
+                    time.sleep(0.3)
+                    cmds = {"header": MOVE,"direction": RIGHT}
+                    agent.network.send(cmds)
+                time.sleep(0.4)
         # Zig Zag strategy for less agents
         else : 
             UP_LR, DOWN_LR = UP_RIGHT, DOWN_RIGHT # the agent starts by going from left to right
@@ -260,7 +279,6 @@ if __name__ == "__main__":
                         print("I'm DONE")
                         agent.completed = True
                         break
-                    
                     agent.forget_found_item()
                     time.sleep(0.3)
                     if agent.cell_val > 0 :
@@ -284,7 +302,7 @@ if __name__ == "__main__":
                     agent.network.send(cmds)
                     time.sleep(0.3)
                     
-                agent.game_state()
+                agent.game_state() 
         # Once the loop is broken, it means every agent knows where its items are.
         # The following method makes the go and fetch their keys and boxes.
         agent.go_to_final_position()
